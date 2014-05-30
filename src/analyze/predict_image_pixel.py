@@ -50,9 +50,9 @@ for i in range(1):
         im_disp = []
         features = []
         
-        def list_to_dict(l):
+        def list_to_dict(list):
             res = {}
-            for l_item in l:
+            for l_item in list:
                 res[l_item.label] = l_item
             return res
         
@@ -107,7 +107,7 @@ for i in range(1):
                 X_indiv.append(x_entry)
         X_indiv = np.array(X_indiv)
         
-        def get_usable_index():
+        def get_feature_columns():
             n_feature = 12
             n_used_feature = 8
             indexes = []
@@ -117,7 +117,7 @@ for i in range(1):
                 current += n_feature
             return indexes
     
-        indexes = get_usable_index()
+        indexes = get_feature_columns()
         X_indiv = X_indiv[:,indexes]
         Y_indiv = classifier.predict_proba(X_indiv)[:,1]
         

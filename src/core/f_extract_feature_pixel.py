@@ -1,22 +1,24 @@
 '''
-Input: Centroid position array in category/position/[image-name].nparray
-    Format position for @image --> [coordX coordX label Y]
-Ouput: Multilayer-superpixel array in category/nparray/[scenario-name]/[image-name].nparray
-    Format multilayer-superpixel for @image --> [layer1 layer2 layer 3 ... layer N]
+Modul Ektraksi fitur multilayer:
+    1. SLIC untuk setiap layer
+    2. Fitur setiap piksel = [ [fitur_layer_1], ..., [fitur_layer_n] label] 
+    3. Hapus fitur duplikat
+    4. Tulis file fitur
     
-Applied on all scenarios
-
 @author: fruity
 '''
-from skimage import data
+
 from skimage.color.colorconv import rgb2gray
 from skimage.segmentation import slic, mark_boundaries
 from skimage.measure import regionprops
 from skimage.morphology import label
-from constant import array_px_path, attributes, directory_path, groundtruth_path, position_path
+from constant import attributes, directory_path
 import numpy as np
-from os import listdir, makedirs
-from os.path import isfile, join, splitext, exists
+
+from util import list_to_dict, get_feature_array_scenario_path, get_feature_array_file
+from util.image import mark
+from util.matrix import unique_rows
+from util.file import create_directory, get_files, read_image, read_groundtruth_image
 
 global a
 global im_slic
@@ -24,24 +26,26 @@ global im_disp
 
 def extract_feature(scenario):
     n_layer = scenario['layer']
-    target_directory = array_px_path + scenario['codename'] + "/"
+    target_directory = get_feature_array_scenario_path(scenario['codename'])
     
-    if not exists(target_directory):
-        print "Extracting feature "+scenario['codename']
-        makedirs(target_directory)
-    array_px_files = [ f for f in listdir(target_directory) if isfile(join(target_directory, f)) ]
+    create_directory(target_directory)
+    array_px_files = get_files(target_directory)
+    
+    # Jangan lakukan ekstraksi fitur ulang
     if len(array_px_files) >= 50:
         print "feature "+scenario['codename']+" is already existed. Abort mission"
         return
         
     # Ambil semua file gambar
-    image_files = [ f for f in listdir(directory_path) if isfile(join(directory_path, f)) ]
+    image_filenames = get_files(directory_path)
     counter = 0
-    for image_file in image_files:
+    for image_filename in image_filenames:
 #         print "Extracting %s:%s"%(counter, position_file)
         counter += 1
-        a = data.imread(directory_path + splitext(image_file)[0] + ".jpg")
-        gt = data.imread(groundtruth_path + splitext(image_file)[0] + "-gt.jpg", as_grey=True)
+        a = read_image(image_filename)
+        gt = read_groundtruth_image(image_filename)
+        
+        # konversi menjadi binary image
         gt = gt > 20
         gt = gt.astype(int)
         image_shape = a.shape
@@ -49,20 +53,12 @@ def extract_feature(scenario):
         image_col = image_shape[1]
         image_layer = image_shape[2]
         
-        global fig
-        global features
-        
         im_slic = []
         im_disp = []
         im_bound = []
         features = []
         
-        def list_to_dict(l):
-            res = {}
-            for l_item in l:
-                res[l_item.label] = l_item
-            return res
-        
+        # Extract superpixel feature for each layer
         for i in range(n_layer):
             im_slic.append(slic(a, compactness=scenario['settings'][i]['compactness'],
                                 n_segments=scenario['settings'][i]['segment'],
@@ -73,14 +69,6 @@ def extract_feature(scenario):
             temp_feature = regionprops(im_slic[i], intensity_image=rgb2gray(a))
             features.append(list_to_dict(temp_feature))
             
-        
-        def mark(label, value, im_slice, im_display):
-            indexes = np.where(im_slice == label)
-            for i, v in enumerate(indexes[0]):
-                im_display[v, indexes[1][i]] = value
-            
-        global labels
-        labels = {}
         X_indiv = []
         
         for im_row in range(image_row):
@@ -89,7 +77,7 @@ def extract_feature(scenario):
                 posLabel = gt[im_row, im_col]
                 current_labels = []
                 
-        #         validate labels. 0 label is not allowed
+        #         validate labels. 0 label is not allowed. causing not exists error
                 valid_position = True
                 for i in range(n_layer):
                     current_level_labels = im_slic[i][im_row, im_col] 
@@ -118,12 +106,21 @@ def extract_feature(scenario):
                         mark(current_labels[i], 1, im_slic[i], im_disp[i])
                 x_entry.append(posLabel)
                 X_indiv.append(x_entry)
-        f = open(target_directory + splitext(image_file)[0] + ".nparray" , 'w')
+                
+        f = get_feature_array_file(scenario['codename'], image_filename, mode='w')
         
         X_indiv = np.array(X_indiv)
-        X_indiv_u = np.ascontiguousarray(X_indiv).view(np.dtype((np.void, X_indiv.dtype.itemsize * X_indiv.shape[1])))
-        _, idx = np.unique(X_indiv_u, return_index=True)
-        X_indiv_u = X_indiv[idx]
+        X_indiv_u = unique_rows(X_indiv)
         np.save(f, X_indiv_u)
         f.close() 
 #         print "X_indiv: "+str(X_indiv.shape)
+
+
+results = []
+s = {"layer": 1,
+                "settings": [{'compactness':10, 'segment':500, 'sigma':1}],
+                "codename" : "solo-c%s-s%s"%(10,500) }
+extract_feature(s)
+from f_create_model_pixel import create_model
+print results.append(create_model(s))
+

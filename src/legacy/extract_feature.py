@@ -13,7 +13,6 @@ from skimage.color.colorconv import rgb2gray
 from skimage.segmentation import slic, mark_boundaries
 from skimage.measure import regionprops
 from skimage.morphology import label
-from skimage.filter import threshold_otsu
 import matplotlib.pyplot as plt
 import numpy as np
 from constant import *
@@ -33,15 +32,13 @@ for i in range(len(scenarios)):
         makedirs(target_directory)
         
     # Ambil semua file gambar
-    image_files = [ f for f in listdir(directory_path) if isfile(join(directory_path, f)) ]
+    position_files = [ f for f in listdir(position_path) if isfile(join(position_path, f)) ]
     counter = 0
-    for image_file in image_files:
-        print "Extracting %s:%s"%(counter, image_file)
+    for position_file in position_files:
+        print "Extractig %s:%s"%(counter, position_file)
         counter += 1
-        a = data.imread(directory_path + splitext(image_file)[0] + ".jpg")
-        gt = data.imread(groundtruth_path + splitext(image_file)[0] + "-gt.jpg", as_grey=True)
-        gt = gt > 20
-        gt = gt.astype(int)
+        a = data.imread(directory_path + splitext(position_file)[0] + ".jpg")
+        coordinates = np.load(position_path + position_file)
         
         global fig
         global features
@@ -51,9 +48,9 @@ for i in range(len(scenarios)):
         im_bound = []
         features = []
         
-        def list_to_dict(l):
+        def list_to_dict(list):
             res = {}
-            for l_item in l:
+            for l_item in list:
                 res[l_item.label] = l_item
             return res
         
@@ -67,7 +64,6 @@ for i in range(len(scenarios)):
             temp_feature = regionprops(im_slic[i], intensity_image=rgb2gray(a))
             features.append(list_to_dict(temp_feature))
             
-        coordinates = features[0]
         
         def mark(label, value, im_slice, im_display):
             indexes = np.where(im_slice == label)
@@ -78,10 +74,12 @@ for i in range(len(scenarios)):
         labels = {}
         X_indiv = []
         
-        for k,coord in coordinates.items():
+        for coord in coordinates:
     #         extract position and corresponding labels
-            posY, posX = coord['centroid']
-            posLabel = gt[posY, posX]
+            posY = coord[0]
+            posX = coord[1]
+            posLabel = coord[3]
+            
             current_labels = []
             
     #         validate labels. 0 label is not allowed
@@ -113,8 +111,50 @@ for i in range(len(scenarios)):
                     mark(current_labels[i], 1, im_slic[i], im_disp[i])
             x_entry.append(posLabel)
             X_indiv.append(x_entry)
-        f = open(target_directory + splitext(image_file)[0] + ".nparray" , 'w')
+        f = open(target_directory + splitext(position_file)[0] + ".nparray" , 'w')
         X_indiv = np.array(X_indiv)
         np.save(f, X_indiv)
         f.close() 
         print "X_indiv: "+str(X_indiv.shape)
+        
+    #     column_count = min(4, n_layer)
+    #     row_count = int(ceil(float(n_layer)/column_count))
+    #     fig, ax = plt.subplots(row_count, column_count)
+    #     fig.set_size_inches(8, 4, forward=True)
+    #     plt.subplots_adjust(0.05, 0.05, 0.95, 0.95, 0.05, 0.05)
+    #     
+    #     current_column = 0
+    #     current_row = 0
+    #     for i in range(n_layer):
+    #         if row_count == 1:
+    #             ax[current_column].imshow(im_disp[i])
+    #             ax[current_column].set_title("Layer " + str(i))
+    #         else:
+    #             ax[current_row][current_column].imshow(im_disp[i])
+    #             ax[current_row][current_column].set_title("Layer " + str(i))
+    #         current_column += 1
+    #         if current_column >= column_count:
+    #             current_column = 0
+    #             current_row += 1
+             
+    #     def on_key(event):
+    # #         Only consider click event on SLIC 1 image
+    #         global plt
+    #         if event.key == "enter":
+    #             plt.close('all')
+    #     
+    #     cid = fig.canvas.mpl_connect('key_press_event', on_key)
+    #     
+    #     if row_count > 1:
+    #         for arr in ax:
+    #             for a in arr:
+    #                 a.set_xticks(())
+    #                 a.set_yticks(())
+    #     else:
+    #         for arr in ax:
+    #             arr.set_xticks(())
+    #             arr.set_yticks(())
+    #             
+    #     mng = plt.get_current_fig_manager()
+    #     mng.resize(*mng.window.maxsize())
+    #     plt.show()

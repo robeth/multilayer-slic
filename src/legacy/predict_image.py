@@ -43,9 +43,9 @@ for i in range(len(scenarios)):
         im_disp = []
         features = []
         
-        def list_to_dict(l):
+        def list_to_dict(list):
             res = {}
-            for l_item in l:
+            for l_item in list:
                 res[l_item.label] = l_item
             return res
         
@@ -104,7 +104,7 @@ for i in range(len(scenarios)):
             L_indiv.append(feature['label'])
         X_indiv = np.array(X_indiv)
         
-        def get_usable_index():
+        def get_feature_columns():
             n_feature = 12
             n_used_feature = 8
             indexes = []
@@ -114,7 +114,7 @@ for i in range(len(scenarios)):
                 current += n_feature
             return indexes
     
-        indexes = get_usable_index()
+        indexes = get_feature_columns()
         X_indiv = X_indiv[:,indexes]
         Y_indiv = classifier.predict(X_indiv)
         

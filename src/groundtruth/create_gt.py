@@ -28,9 +28,9 @@ for position_file in position_files:
     im_slic = label(im_slic, neighbors=8)
     temp = regionprops(im_slic, intensity_image=rgb2gray(a))
     
-    def list_to_dict(l):
+    def list_to_dict(list):
         res = {}
-        for l_item in l:
+        for l_item in list:
             res[l_item.label] = l_item
         return res
     

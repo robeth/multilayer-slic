@@ -1,74 +1,57 @@
 '''
-Input: Multilayer-superpixel array in category/nparray/[scenario-name]/[image-name].nparray
-    Format multilayer-superpixel for @image --> [layer1 layer2 layer 3 ... layer N]
-    
-Ouput: 
-    a. classifier model in category/classifier/[scneario-name]/RF-[category]-[scenario-name].cls
-    b. 
-    
-Random forest applied on all scenarios
+Created on Apr 15, 2014
+
+Function form of create_model.py
+
 @author: fruity
 '''
 
 import numpy as np
 from sklearn.metrics import confusion_matrix, accuracy_score
-from constant import *
+from constant import array_px_path, train_start_index, train_end_index, test_start_index, test_end_index, classifier_path_px, classifier_extension, category 
 from os import listdir, makedirs
 from os.path import isfile, join, splitext, exists
-from sklearn import svm
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
 from sklearn.cross_validation import StratifiedKFold, cross_val_score
+from util import get_feature_columns, get_total_columns, get_feature_array_scenario_path
+from util.file import get_files
 
-if not exists(result_path):
-    makedirs(result_path)
-result_file = open(result_filename, 'w')
+target_path = get_feature_array_scenario_path("base3")
+print target_path
 
-for i in range(len(scenarios)):
-    scenario = scenarios[i]
-    result_file.write("Scenario "+scenario['codename']+"\n")
+def create_model(scenario):
     n_layer = scenario['layer']
-    n_column = 12 * n_layer + 1
-    target_directory = array_path + scenario['codename'] + "/"
+    n_column = get_total_columns(n_layer)
+    column_indexes = get_feature_columns(n_layer)
     
-    def get_usable_index():
-        n_feature = 12
-        n_used_feature = 8
-        indexes = []
-        current = 0
-        for i in range(n_layer):
-            indexes += range(current,current+n_used_feature)
-            current += n_feature
-        return indexes
+    target_directory = get_feature_array_scenario_path(scenario['codename'])
     
-    indexes = get_usable_index()
-    
-    target_files = [ f for f in listdir(target_directory) if isfile(join(target_directory,f)) ]
+    target_files = get_files(target_directory)
     target_train_files = target_files[train_start_index: train_end_index]
     target_test_files = target_files[test_start_index: test_end_index]
     
     X = np.zeros((0,n_column))
     X_test = np.zeros((0, n_column))
-    count = 1
+    
     for target_file in target_train_files:
-        print target_directory+target_file
+#         print target_directory+target_file
         entry = np.load(target_directory+target_file)
         X = np.concatenate((X,entry), axis = 0 )
     
     for target_file in target_test_files:
-        print target_directory+target_file
+#         print target_directory+target_file
         entry = np.load(target_directory+target_file)
         X_test = np.concatenate((X_test,entry), axis = 0 )
         
     Y = X[:, -1]
-    X = X[:,indexes]
+    X = X[:,column_indexes]
     
     Y_test = X_test[:, -1]
-    X_test = X_test[:,indexes]
+    X_test = X_test[:,column_indexes]
     
     strat_kfold = StratifiedKFold(Y, n_folds = 5)
-    print "Train data: test data = %s : %s"%(len(X), len(X_test))
+#     print "Train data: test data = %s : %s"%(len(X), len(X_test))
     # clf1 = svm.SVC(class_weight='auto')
     # clf2 = DecisionTreeClassifier()
     clf3 = RandomForestClassifier()
@@ -92,10 +75,10 @@ for i in range(len(scenarios)):
             highest_counter = counter
             chosen_train_index = train_index
             chosen_test_index = test_index
-        new_entry = {'acc':acc, 'fn':conf[0,1], 'fp':conf[1,0]}
-        str_new_entry = str(new_entry) + " -- train-test:(%s,%s)"%(len(train_index), len(test_index)) 
-        result_file.write(str_new_entry+"\n")
-        print str_new_entry
+        counter += 1
+#         new_entry = {'acc':acc, 'fn':conf[0,1], 'fp':conf[1,0]}
+#         str_new_entry = str(new_entry) + " -- train-test:(%s,%s)"%(len(train_index), len(test_index)) 
+#         print str_new_entry
     
         
     print "Chosen index-accuracy: %s -- %s"%(highest_counter, highest_accuracy)
@@ -104,13 +87,12 @@ for i in range(len(scenarios)):
     
     Y_predict = clf3.predict(X_test)
     a_score, c_matrix = accuracy_score(Y_test, Y_predict), confusion_matrix(Y_test, Y_predict)
-    final_result = {'acc':a_score, 'fn':c_matrix[0,1], 'fp':c_matrix[1,0]}
+    final_result = {'codename': scenario['codename'],'acc':a_score, 'fn':c_matrix[0,1], 'fp':c_matrix[1,0], 'tn':c_matrix[0,0], 'tp':c_matrix[1,1]}
     str_final_result = "Test result --> " + str(final_result) + " test case:"+str(len(X_test))
     print str_final_result
-    result_file.write(str_final_result+"\n")
 
-    classifier_directory = classifier_path + scenario['codename'] + "/"
+    classifier_directory = classifier_path_px + scenario['codename'] + "/"
     if not exists(classifier_directory):
         makedirs(classifier_directory)
     joblib.dump(clf3, classifier_directory+'RF'+"-"+category+"-"+scenario['codename']+ classifier_extension)
-result_file.close()
+    return final_result

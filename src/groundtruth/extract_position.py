@@ -60,9 +60,9 @@ for image_file in image_files:
     pltcop0.set_data(im_bound)
          
     
-    def list_to_dict(l):
+    def list_to_dict(list):
         res = {}
-        for l_item in l:
+        for l_item in list:
             res[l_item.label] = l_item
         return res
     

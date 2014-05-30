@@ -20,7 +20,7 @@ def create_model(scenario):
     n_column = 12 * n_layer + 1
     target_directory = array_path + scenario['codename'] + "/"
     
-    def get_usable_index():
+    def get_feature_columns():
         n_feature = 12
         n_used_feature = 8
         indexes = []
@@ -30,7 +30,7 @@ def create_model(scenario):
             current += n_feature
         return indexes
     
-    indexes = get_usable_index()
+    indexes = get_feature_columns()
     
     target_files = [ f for f in listdir(target_directory) if isfile(join(target_directory,f)) ]
     target_train_files = target_files[train_start_index: train_end_index]

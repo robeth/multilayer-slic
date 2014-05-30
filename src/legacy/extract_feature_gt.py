@@ -13,33 +13,33 @@ from skimage.color.colorconv import rgb2gray
 from skimage.segmentation import slic, mark_boundaries
 from skimage.measure import regionprops
 from skimage.morphology import label
-from constant import array_path, attributes, directory_path, groundtruth_path, position_path
+from skimage.filter import threshold_otsu
+import matplotlib.pyplot as plt
 import numpy as np
+from constant import *
 from os import listdir, makedirs
 from os.path import isfile, join, splitext, exists
+from math import ceil
 
 global a
 global im_slic
 global im_disp
 
-def extract_feature(scenario):
+for i in range(len(scenarios)):
+    scenario = scenarios[i]
     n_layer = scenario['layer']
     target_directory = array_path + scenario['codename'] + "/"
     if not exists(target_directory):
-        print "Extracting feature "+scenario['codename']
         makedirs(target_directory)
-    else:
-        print "feature "+scenario['codename']+" is already existed. Abort mission"
-        return
         
     # Ambil semua file gambar
-    position_files = [ f for f in listdir(position_path) if isfile(join(position_path, f)) ]
+    image_files = [ f for f in listdir(directory_path) if isfile(join(directory_path, f)) ]
     counter = 0
-    for position_file in position_files:
-#         print "Extracting %s:%s"%(counter, position_file)
+    for image_file in image_files:
+        print "Extracting %s:%s"%(counter, image_file)
         counter += 1
-        a = data.imread(directory_path + splitext(position_file)[0] + ".jpg")
-        gt = data.imread(groundtruth_path + splitext(position_file)[0] + "-gt.jpg", as_grey=True)
+        a = data.imread(directory_path + splitext(image_file)[0] + ".jpg")
+        gt = data.imread(groundtruth_path + splitext(image_file)[0] + "-gt.jpg", as_grey=True)
         gt = gt > 20
         gt = gt.astype(int)
         
@@ -51,9 +51,9 @@ def extract_feature(scenario):
         im_bound = []
         features = []
         
-        def list_to_dict(l):
+        def list_to_dict(list):
             res = {}
-            for l_item in l:
+            for l_item in list:
                 res[l_item.label] = l_item
             return res
         
@@ -113,8 +113,8 @@ def extract_feature(scenario):
                     mark(current_labels[i], 1, im_slic[i], im_disp[i])
             x_entry.append(posLabel)
             X_indiv.append(x_entry)
-        f = open(target_directory + splitext(position_file)[0] + ".nparray" , 'w')
+        f = open(target_directory + splitext(image_file)[0] + ".nparray" , 'w')
         X_indiv = np.array(X_indiv)
         np.save(f, X_indiv)
         f.close() 
-#         print "X_indiv: "+str(X_indiv.shape)
+        print "X_indiv: "+str(X_indiv.shape)

@@ -23,16 +23,16 @@ from sklearn.cross_validation import StratifiedKFold, cross_val_score
 
 if not exists(result_path):
     makedirs(result_path)
-result_file = open(result_filename_px, 'w')
+result_file = open(result_filename, 'w')
 
-for i in range(1):
+for i in range(len(scenarios)):
     scenario = scenarios[i]
-    result_file.write("Scenario Piksel "+scenario['codename']+"\n")
+    result_file.write("Scenario "+scenario['codename']+"\n")
     n_layer = scenario['layer']
     n_column = 12 * n_layer + 1
-    target_directory = array_px_path + scenario['codename'] + "/"
+    target_directory = array_path + scenario['codename'] + "/"
     
-    def get_usable_index():
+    def get_feature_columns():
         n_feature = 12
         n_used_feature = 8
         indexes = []
@@ -42,7 +42,7 @@ for i in range(1):
             current += n_feature
         return indexes
     
-    indexes = get_usable_index()
+    indexes = get_feature_columns()
     
     target_files = [ f for f in listdir(target_directory) if isfile(join(target_directory,f)) ]
     target_train_files = target_files[train_start_index: train_end_index]
@@ -104,12 +104,12 @@ for i in range(1):
     
     Y_predict = clf3.predict(X_test)
     a_score, c_matrix = accuracy_score(Y_test, Y_predict), confusion_matrix(Y_test, Y_predict)
-    final_result = {'codename': scenario['codename'],'acc':a_score, 'fn':c_matrix[0,1], 'fp':c_matrix[1,0], 'tn':c_matrix[0,0], 'tp':c_matrix[1,1]}
+    final_result = {'acc':a_score, 'fn':c_matrix[0,1], 'fp':c_matrix[1,0]}
     str_final_result = "Test result --> " + str(final_result) + " test case:"+str(len(X_test))
     print str_final_result
     result_file.write(str_final_result+"\n")
 
-    classifier_directory = classifier_path_px + scenario['codename'] + "/"
+    classifier_directory = classifier_path + scenario['codename'] + "/"
     if not exists(classifier_directory):
         makedirs(classifier_directory)
     joblib.dump(clf3, classifier_directory+'RF'+"-"+category+"-"+scenario['codename']+ classifier_extension)

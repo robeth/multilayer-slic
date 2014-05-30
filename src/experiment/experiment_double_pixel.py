@@ -3,8 +3,8 @@ Created on Apr 15, 2014
 
 @author: fruity
 '''
-from f_create_model_pixel import create_model
-from f_extract_feature_pixel import extract_feature
+from core.f_create_model_pixel import create_model
+from core.f_extract_feature_pixel import extract_feature
 from constant import result_path, category
 
 filename = "double_pixel-goodgood.txt"

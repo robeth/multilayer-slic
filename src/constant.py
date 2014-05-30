@@ -4,7 +4,7 @@ Created on Dec 12, 2013
 @author: fruity
 '''
 category = "Head"
-directory_path = "../data/"+category+"/"
+directory_path = "data/"+category+"/"
 position_path = directory_path + "position/"
 array_path = directory_path + "nparray/"
 array_px_path = directory_path + "feature_pixel/"
@@ -18,6 +18,7 @@ train_slide_path = directory_path + "train_sliding/"
 output_path = directory_path+"output/"
 output_path_px = directory_path+"output_pixel/"
 result_path = directory_path +"result/"
+output_morph_path = directory_path +"output-morph/"
 result_filename = result_path +  "result.txt"
 result_filename_px = result_path + "result-px.txt"
 array_extension = ".nparray"
@@ -38,6 +39,8 @@ train_start_index = 0
 train_end_index = 25
 test_start_index = 25
 test_end_index = 50
+total_feature=12
+total_used_feature=8
 layer = { 0: {'compactness':20, 'segment':500},
          1: {'compactness':10, 'segment':300},
          2: {'compactness':5, 'segment':30}
