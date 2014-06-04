@@ -24,6 +24,22 @@ humerus_anno_filename = "humerus-result.txt"
 femur_anno_filepath = gt_dir + femur_anno_filename
 humerus_anno_filepath = gt_dir + humerus_anno_filename
 
+head_chosen_filename = "head_chosen.txt"
+abdo_chosen_filename = "abdo_chosen.txt"
+femur_chosen_filename = "femur_chosen.txt"
+humerus_chosen_filename = "humerus_chosen.txt"
+head_chosen_path = gt_dir+head_chosen_filename
+abdo_chosen_path = gt_dir+abdo_chosen_filename
+femur_chosen_path = gt_dir + femur_chosen_filename
+humerus_chosen_path = gt_dir + humerus_chosen_filename
+
+final_path = gt_dir + "chosen/"
+head_final_path = final_path+ "head-chosen/"
+abdo_final_path = final_path+ "abdo-chosen/"
+femur_final_path = final_path + "femur-chosen/"
+humerus_final_path = final_path + "humerus-chosen/"
+
+
 ellipse_raw_filenames = get_files(gt_raw_dir)
 ellipse_ano_filenames = get_files(gt_ano_dir)
 ellipse_combined_filenames = get_files(combined_dir)
@@ -439,6 +455,16 @@ def read_line_config():
         config_dictionary[parts[0]] = parts[1] == "True"
     return config_dictionary
 
+def read_chosen_config(chosen_file_path):
+    chose_file = open(chosen_file_path, 'r')
+    lines = chose_file.readlines()
+    dictionary = {}
+    for line in lines:
+        line = line.replace("\n","")
+        line = line.split(",")
+        dictionary[line[0]] = line[1] == "1"
+    return dictionary
+
 def ROUTINE_split_femur_humerus():
     config_dictionary = read_line_config()
     for combined_filename in line_combined_filenames:
@@ -465,9 +491,151 @@ def ROUTINE_annotate_femur():
     
 def ROUTINE_annotate_humerus():
     SUBROUTINE_annotate_line(comb_humerus_dir, humerus_anno_filename, "humerus")
+    
+def prepare_chosen_file(output_filepath, image_directory):
+    filenames = get_files(image_directory)
+    out_file = open(output_filepath, 'w')
+    for filename in filenames:
+        out_file.write(image_directory+filename+",1\n")
+    out_file.close()
         
+def ROUTINE_prepare_chosen():
+    prepare_chosen_file(head_chosen_path, comb_head_dir)
+    prepare_chosen_file(abdo_chosen_path, comb_abdo_dir)
+    prepare_chosen_file(femur_chosen_path, comb_femur_dir)
+    prepare_chosen_file(humerus_chosen_path, comb_humerus_dir)
+
+def write_chosen_dictionary(dictionary, output_filepath):
+    output_file = open(output_filepath, 'w')
+    for key, value in dictionary.items():
+        if value:
+            value = "1"
+        else:
+            value ="0"
+        output_file.write(key+","+value+"\n")
+    output_file.close()
+
+def choose_file(input_image, file_path, dictionary, output_file_path, counter):
+    global in_image
+    global in_filepath
+    global fig
+    global pltcop
+    global display_image
+    global output_filepath
+    global filepath
+    
+    in_image = input_image
+    in_filepath = file_path
+    output_filepath = output_file_path
+    filepath = file_path
+    
+    import matplotlib.pyplot as plt
+    
+    fig, ax = plt.subplots(1, 1)
+    fig.set_size_inches(8, 4, forward=True)
+    plt.subplots_adjust(0.05, 0.05, 0.95, 0.95, 0.05, 0.05)
+    pltcop = ax.imshow(input_image)
+    ax.set_xticks(())
+    ax.set_yticks(())
+    
+    global is_chosen
+    is_chosen = dictionary[file_path]
+    
+    
+    def redraw():
+        global in_image
+        global display_image
+        global pltcop
+        global fig
+        global is_chosen
+        
+        display_image = np.copy(in_image)
+        
+        if not is_chosen:
+            from skimage.draw import circle
+            r_index, c_index = circle(100, 100, 40)
+            display_image[r_index, c_index] = np.array([200, 0, 0])
+        pltcop.set_data(display_image)
+        fig.canvas.draw()
+        
+    def click(event):
+        global is_chosen
+        if event.button == 3 or event.button == 1:
+            is_chosen = not is_chosen
+        redraw()
+    
+    def on_key(event):
+        global in_filename
+        global is_chosen
+        global output_filepath
+        global filepath
+        
+        if event.key == "enter":
+            dictionary[filepath] = is_chosen
+            write_chosen_dictionary(dictionary, output_filepath)
+        elif event.key == "shift":
+            dictionary[filepath] = is_chosen
+            write_chosen_dictionary(dictionary, output_filepath)
+            plt.close('all')
+    
+    cid = fig.canvas.mpl_connect('button_press_event', click)
+    cid = fig.canvas.mpl_connect('key_press_event', on_key)
+    
+    redraw()
+    mng = plt.get_current_fig_manager()
+    mng.resize(*mng.window.maxsize())
+    plt.suptitle(str(counter) + file_path)
+    plt.show()
+    
+def del_folder_content(directory):
+    filenames = get_files(directory)
+    from os.path import isfile, join
+    from os import unlink
+    for filename in filenames:
+        filepath = join(directory, filename)
+        if isfile(filepath):
+            unlink(filepath)
+    
+def export_chosen_data(input_folder, target_folder, config_filepath):
+    del_folder_content(target_folder)
+    config_dictionary = read_chosen_config(config_filepath)
+    for image_filepath, chosen_status in config_dictionary.items():
+        if chosen_status:
+            upper_image = get_raw_image(read_image(image_filepath, dir=""))
+            imsave(target_folder+basename(image_filepath), upper_image)
+    
+def ROUTINE_choose(mode = "head"):
+    chosen_path = ""
+    if mode == "head":
+        chosen_path = head_chosen_path
+    elif mode == "abdo":
+        chosen_path = abdo_chosen_path
+    elif mode == "femur":
+        chosen_path = femur_chosen_path
+    elif mode == "humerus":
+        chosen_path = humerus_chosen_path
+        
+    dictionary = read_chosen_config(chosen_path)
+    counter = 1
+    for filepath, value in dictionary.items():
+        image = read_image(filepath, dir="")
+        choose_file(image, filepath, dictionary, chosen_path, counter)
+        counter += 1
+        
+def ROUTINE_export(dataset="head"):
+    if dataset == "head":
+        export_chosen_data(comb_head_dir, head_final_path, head_chosen_path)
+    elif dataset == "abdo":
+        export_chosen_data(comb_abdo_dir, abdo_final_path, abdo_chosen_path)
+    elif dataset == "femur":
+        export_chosen_data(comb_femur_dir, femur_final_path, femur_chosen_path)
+    elif dataset == "humerus":
+        export_chosen_data(comb_humerus_dir, humerus_final_path, humerus_chosen_path)
 # ROUTINE_mark_line()
 # ROUTINE_create_line_stack_images()
 # read_line_config()
 # ROUTINE_split_femur_humerus()
-ROUTINE_annotate_humerus()
+# ROUTINE_annotate_humerus()
+# ROUTINE_choose_head()
+# ROUTINE_export("humerus")
+# ROUTINE_choose(mode="humerus")
